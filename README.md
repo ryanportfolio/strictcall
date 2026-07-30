@@ -3,8 +3,9 @@
 A LangGraph agent that answers plain-English questions against a SQL warehouse.
 Every tool call is validated against a Pydantic contract, inputs and outputs
 both. One SQL interface, two backends: DuckDB (runs anywhere, no credentials)
-and Snowflake (same contract, cloud warehouse). Built to package for Amazon
-Bedrock AgentCore Runtime.
+and Snowflake (same contract, cloud warehouse). Ships as a CLI and as an HTTP
+service implementing the Amazon Bedrock AgentCore Runtime contract, hand-built
+rather than SDK-generated.
 
 ## Run it locally
 
@@ -104,6 +105,34 @@ question ──> agent node (RetryPolicy) ──> tool node ──> agent node �
 - The tool layer holds one `SqlBackend` reference and never branches on which
   warehouse is behind it. `STRICTCALL_BACKEND=duckdb|snowflake` picks the
   implementation.
+
+## Run it as a service
+
+[runtime.py](src/strictcall/runtime.py) implements the AgentCore Runtime
+contract directly in FastAPI, without the `bedrock-agentcore` SDK: `POST
+/invocations` takes a question, `GET /ping` reports `Healthy` or `HealthyBusy`,
+and the AgentCore session header maps onto the agent's conversation memory, so
+each session keeps its own history. The same container runs locally, on any
+container host, or on AgentCore itself.
+
+```bash
+uv run uvicorn strictcall.runtime:app --port 8080
+curl -X POST localhost:8080/invocations -H "Content-Type: application/json" \
+  -d '{"prompt": "How many Platinum members are there?"}'
+```
+
+Real response from that call, and it matches the warehouse (exactly one member
+holds Platinum):
+
+```json
+{"text": "Based on the data in the loyalty warehouse, there is **1 Platinum member** (tier_id = 4) out of the total members.", "sql_used": ["SELECT name, tier_id FROM tiers", "SELECT COUNT(*) FROM members WHERE tier_id = 4"], "data_caveats": []}
+```
+
+Contract tests boot the app with a scripted model, so the whole
+request-to-answer path is verified offline in CI: response shape, session
+isolation, request validation (a missing or empty prompt is rejected with a
+422 before the agent runs). `docker build -t strictcall .` produces the
+container; add `--platform linux/arm64` for AgentCore.
 
 ## Models
 
