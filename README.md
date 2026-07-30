@@ -5,9 +5,11 @@
 A LangGraph agent that answers plain-English questions against a SQL warehouse.
 Every tool call is validated against a Pydantic contract, inputs and outputs
 both. One SQL interface, two backends: DuckDB (runs anywhere, no credentials)
-and Snowflake (same contract, cloud warehouse). Ships as a CLI and as an HTTP
-service implementing the Amazon Bedrock AgentCore Runtime contract, hand-built
-rather than SDK-generated.
+and Snowflake (same contract, cloud warehouse). Ships as a CLI, a web chat UI,
+and an HTTP service implementing the Amazon Bedrock AgentCore Runtime
+contract, hand-built rather than SDK-generated.
+
+![The chat UI answering a question, with tool calls and the SQL it ran](docs/ui.png)
 
 ## Run it locally
 
@@ -107,6 +109,20 @@ question ──> agent node (RetryPolicy) ──> tool node ──> agent node �
 - The tool layer holds one `SqlBackend` reference and never branches on which
   warehouse is behind it. `STRICTCALL_BACKEND=duckdb|snowflake` picks the
   implementation.
+
+## Chat UI
+
+The runtime serves a chat page at `/`: start the service, open
+http://localhost:8080, and ask. Answers stream token by token, each tool call
+shows up as a chip as it happens, and every reply carries an expandable panel
+with the exact SQL the agent ran, so nothing about the answer is a black box.
+The page is one dependency-free static file
+([index.html](src/strictcall/static/index.html)) talking to the same
+`/invocations` SSE endpoint any other client would use.
+
+A live instance runs at https://strictcall-production.up.railway.app on a
+free-tier model, so it shares a small daily request cap; if it stops
+answering, run it locally instead.
 
 ## Run it as a service
 
