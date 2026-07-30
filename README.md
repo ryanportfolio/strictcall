@@ -9,6 +9,9 @@ and Snowflake (same contract, cloud warehouse). Ships as a CLI, a web chat UI,
 and an HTTP service implementing the Amazon Bedrock AgentCore Runtime
 contract, hand-built rather than SDK-generated.
 
+**Try it live:** https://strictcall-production.up.railway.app - ask a question,
+watch the tool calls stream in, and expand the SQL behind every answer.
+
 ![The chat UI answering a question, with tool calls and the SQL it ran](docs/ui.png)
 
 ## Run it locally
