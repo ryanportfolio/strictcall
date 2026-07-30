@@ -75,6 +75,29 @@ def test_invalid_payload_is_rejected_before_the_agent_runs(backend):
     assert missing.status_code == 422
 
 
+def test_streaming_invocation_emits_deltas_then_one_final_answer(backend):
+    import json
+
+    script = [
+        tool_call("sql_query", {"query": "SELECT COUNT(*) AS n FROM members", "limit": 5}, "c1"),
+        AIMessage("There are 60 members."),
+    ]
+    with client_for(backend, script) as client:
+        with client.stream(
+            "POST", "/invocations", json={"prompt": "How many members?", "stream": True}
+        ) as response:
+            assert response.status_code == 200
+            assert response.headers["content-type"].startswith("text/event-stream")
+            body = "".join(response.iter_text())
+    events = [json.loads(line[len("data: ") :]) for line in body.split("\n\n") if line]
+    deltas = "".join(e["delta"] for e in events if "delta" in e)
+    finals = [e["answer"] for e in events if "answer" in e]
+    assert "There are 60 members." in deltas
+    assert len(finals) == 1
+    assert finals[0]["sql_used"] == ["SELECT COUNT(*) AS n FROM members"]
+    assert finals[0]["text"] == "There are 60 members."
+
+
 def test_busy_counter_tracks_in_flight_work():
     counter = BusyCounter()
     assert not counter.busy
