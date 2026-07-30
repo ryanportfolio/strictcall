@@ -21,3 +21,14 @@ build/
 # OS noise
 Thumbs.db
 .DS_Store
+
+# Generated demo database (rebuild with: python -m strictcall.dataset generate)
+data/
+*.duckdb
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/

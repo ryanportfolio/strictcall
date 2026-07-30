@@ -39,12 +39,16 @@ Two supported shapes:
 1. **`bedrock-agentcore` Python SDK** (`pip install bedrock-agentcore`):
    ```python
    from bedrock_agentcore import BedrockAgentCoreApp
+
    app = BedrockAgentCoreApp()
 
+
    @app.entrypoint
-   async def handler(request):        # sync, async, or (async) generator
-       ...                            # generator => streamed as SSE automatically
-   app.run()                          # serves 8080, /invocations + /ping
+   async def handler(request):  # sync, async, or (async) generator
+       ...  # generator => streamed as SSE automatically
+
+
+   app.run()  # serves 8080, /invocations + /ping
    ```
 2. **Any HTTP framework** (e.g. FastAPI + uvicorn) implementing `/invocations`
    and `/ping` by hand.
@@ -109,16 +113,18 @@ JSON — output validation happens inside the tool before anything reaches the m
 ```python
 class SqlQueryInput(BaseModel):
     """Contract: what the model must supply."""
+
     query: str = Field(description="A single read-only SELECT statement.")
-    limit: int = Field(default=50, ge=1, le=500,
-                       description="Maximum rows to return.")
+    limit: int = Field(default=50, ge=1, le=500, description="Maximum rows to return.")
+
 
 class SqlQueryResult(BaseModel):
     """Contract: what the tool guarantees back."""
+
     columns: list[str]
     rows: list[list[str | int | float | bool | None]]
     row_count: int
-    truncated: bool          # true if limit clipped the result
+    truncated: bool  # true if limit clipped the result
     backend: Literal["duckdb", "snowflake"]
     elapsed_ms: float
 ```
@@ -136,7 +142,8 @@ No arguments. Returns:
 ```python
 class TableInfo(BaseModel):
     name: str
-    columns: list[ColumnInfo]       # name, type, nullable
+    columns: list[ColumnInfo]  # name, type, nullable
+
 
 class SchemaDescription(BaseModel):
     backend: Literal["duckdb", "snowflake"]
@@ -158,6 +165,7 @@ class FxRateInput(BaseModel):
     base: str = Field(pattern=r"^[A-Z]{3}$")
     target: str = Field(pattern=r"^[A-Z]{3}$")
 
+
 class FxRateResult(BaseModel):
     base: str
     target: str
@@ -173,6 +181,7 @@ drift from the API becomes a structured tool error, never an unhandled exception
 ```python
 class SqlBackend(Protocol):
     name: Literal["duckdb", "snowflake"]
+
     def execute(self, query: str, limit: int) -> SqlQueryResult: ...
     def describe(self) -> SchemaDescription: ...
 ```
@@ -194,9 +203,9 @@ final response is produced against a JSON schema derived from
 
 ```python
 class Answer(BaseModel):
-    text: str                     # the natural-language answer
-    sql_used: list[str]           # every query the agent ran
-    data_caveats: list[str]       # e.g. "result truncated at 50 rows"
+    text: str  # the natural-language answer
+    sql_used: list[str]  # every query the agent ran
+    data_caveats: list[str]  # e.g. "result truncated at 50 rows"
 ```
 
 via `.with_structured_output(Answer)` on the closing node. The CLI prints

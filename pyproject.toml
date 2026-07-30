@@ -1,0 +1,41 @@
+[project]
+name = "strictcall"
+version = "0.1.0"
+description = "LangGraph agent with Pydantic-validated tool contracts over a SQL warehouse - Snowflake and DuckDB behind one interface."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "duckdb>=1.1",
+    "httpx>=0.27",
+    "langchain-anthropic>=1.0",
+    "langchain-core>=1.0",
+    "langgraph>=1.0",
+    "pydantic>=2.9",
+]
+
+[project.scripts]
+strictcall = "strictcall.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/strictcall"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".claude", ".agents", ".codex"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
