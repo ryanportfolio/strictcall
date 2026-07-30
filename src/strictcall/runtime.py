@@ -15,10 +15,11 @@ import json
 import threading
 from collections.abc import Iterator
 from contextlib import asynccontextmanager
+from importlib import resources
 from typing import Annotated
 
 from fastapi import FastAPI, Header
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from langchain_core.messages import AIMessageChunk, HumanMessage
 from pydantic import BaseModel, Field
 
@@ -73,6 +74,10 @@ def create_app(backend=None, model=None) -> FastAPI:
         yield
 
     app = FastAPI(title="strictcall runtime", lifespan=lifespan)
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def index() -> str:
+        return (resources.files("strictcall") / "static" / "index.html").read_text(encoding="utf-8")
 
     @app.get("/ping")
     def ping() -> dict[str, str]:

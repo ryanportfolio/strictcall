@@ -98,6 +98,15 @@ def test_streaming_invocation_emits_deltas_then_one_final_answer(backend):
     assert finals[0]["text"] == "There are 60 members."
 
 
+def test_root_serves_the_chat_ui(backend):
+    with client_for(backend, []) as client:
+        response = client.get("/")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "strictcall" in response.text
+    assert "/invocations" in response.text  # the UI talks to the real contract
+
+
 def test_busy_counter_tracks_in_flight_work():
     counter = BusyCounter()
     assert not counter.busy
