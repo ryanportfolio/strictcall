@@ -4,10 +4,11 @@
 
 A LangGraph agent that answers plain-English questions against a SQL warehouse.
 Every tool call is validated against a Pydantic contract, inputs and outputs
-both. One SQL interface, two backends: DuckDB (runs anywhere, no credentials)
-and Snowflake (same contract, cloud warehouse). Ships as a CLI, a web chat UI,
-and an HTTP service implementing the Amazon Bedrock AgentCore Runtime
-contract, hand-built rather than SDK-generated.
+both. One SQL interface with a DuckDB backend (runs anywhere, no credentials);
+a Snowflake backend is stubbed behind the same interface and is the next
+planned step. Ships as a CLI, a web chat UI, and an HTTP service implementing
+the Amazon Bedrock AgentCore Runtime contract, hand-built rather than
+SDK-generated.
 
 **Try it live:** https://strictcall-production.up.railway.app - ask a question,
 watch the tool calls stream in, and expand the SQL behind every answer.
@@ -101,7 +102,7 @@ question ──> agent node (RetryPolicy) ──> tool node ──> agent node �
                                         │
                                   SqlBackend protocol
                                   ┌─────┴───────────┐
-                               DuckDB          Snowflake
+                               DuckDB          Snowflake (stub)
 ```
 
 - Hand-built `StateGraph`: a model node with a `RetryPolicy` for transient API
@@ -177,6 +178,11 @@ uv run python evals/run.py --models "openrouter:cohere/north-mini-code:free"
 
 Latest committed run: 8/8 on `cohere/north-mini-code:free`. The per-question
 table is in [evals/RESULTS.md](evals/RESULTS.md).
+
+Evaluation as its own discipline lives in a sibling repo:
+[tracebench](https://github.com/ryanportfolio/tracebench) scores AI coding
+agents themselves, on whether they verify claims and self-correct, with the
+same rule applied here: deterministic ground truth, receipts committed.
 
 ## Dataset
 
