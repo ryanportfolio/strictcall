@@ -1,0 +1,14 @@
+.git
+.venv
+.tmp
+.claude
+.agents
+.codex
+.github
+.pytest_cache
+.ruff_cache
+__pycache__
+data/
+*.duckdb
+tests/
+docs/

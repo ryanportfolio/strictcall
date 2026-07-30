@@ -1,5 +1,7 @@
 # strictcall
 
+[![ci](https://github.com/ryanportfolio/strictcall/actions/workflows/ci.yml/badge.svg)](https://github.com/ryanportfolio/strictcall/actions/workflows/ci.yml)
+
 A LangGraph agent that answers plain-English questions against a SQL warehouse.
 Every tool call is validated against a Pydantic contract, inputs and outputs
 both. One SQL interface, two backends: DuckDB (runs anywhere, no credentials)
@@ -141,6 +143,21 @@ default), or `openrouter:<vendor>/<model>` for anything on OpenRouter. The live
 test suite (`tests/test_live.py`, skipped unless `OPENROUTER_API_KEY` is set)
 runs the full agent loop against four free-tier models to confirm the tool
 contracts hold across providers.
+
+## Evals
+
+[evals/run.py](evals/run.py) scores the full agent loop against golden
+questions whose reference answers are computed from the warehouse at run time,
+so ground truth never goes stale when the generator changes. A question passes
+only when the agent both called `sql_query` and answered with the reference
+value.
+
+```bash
+uv run python evals/run.py --models "openrouter:cohere/north-mini-code:free"
+```
+
+Latest committed run: 8/8 on `cohere/north-mini-code:free`. The per-question
+table is in [evals/RESULTS.md](evals/RESULTS.md).
 
 ## Dataset
 

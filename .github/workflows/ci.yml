@@ -17,3 +17,17 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t strictcall .
+      # A dummy key satisfies client construction; /ping never calls the model.
+      - run: |
+          docker run -d --rm -p 8080:8080 -e ANTHROPIC_API_KEY=ci-dummy --name strictcall strictcall
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/ping | grep -q Healthy; then exit 0; fi
+            sleep 1
+          done
+          echo "runtime never became healthy"; docker logs strictcall; exit 1
