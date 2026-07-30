@@ -36,6 +36,8 @@ def run_turn(agent, question: str, thread_id: str, as_json: bool) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
+    if hasattr(sys.stdout, "reconfigure"):  # Windows consoles default to cp1252
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(prog="strictcall")
     parser.add_argument("question", nargs="*", help="Question to ask; omit for a REPL.")
     parser.add_argument("--json", action="store_true", help="Also print the structured Answer.")
