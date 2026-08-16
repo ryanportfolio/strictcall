@@ -194,7 +194,7 @@
   }
   .lede em {
     font-style: normal;
-    text-decoration: underline dotted var(--orange);
+    text-decoration: underline dotted var(--blue);
     text-decoration-thickness: 2px;
     text-underline-offset: 4px;
   }
@@ -337,7 +337,29 @@
     color: var(--ink-soft);
     filter: drop-shadow(3px -2px 0 rgba(0, 0, 0, 0.07));
   }
-  .agent .body { white-space: pre-wrap; }
+  .agent .body p { margin: 0 0 12px; }
+  .agent .body h3 {
+    margin: 18px 0 8px;
+    font: 600 13.5px/1.3 var(--display);
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+  .agent .body ul,
+  .agent .body ol { margin: 0 0 12px; padding-left: 20px; }
+  .agent .body li { margin: 3px 0; }
+  .agent .body li::marker { color: var(--blue); }
+  .agent .body > *:last-child { margin-bottom: 0; }
+  pre.code {
+    margin: 0 0 14px;
+    font: 400 12.5px/1.65 var(--mono);
+    color: var(--blue-deep);
+    background: var(--trace);
+    border: 1px solid var(--edge);
+    border-left: 3px solid var(--blue);
+    padding: 14px 16px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
   .bubble strong { font-weight: 500; color: var(--blue-deep); }
   .bubble code {
     font: 400 13px/1.4 var(--mono);
@@ -345,6 +367,34 @@
     border: 1px solid rgba(66,66,66,0.14);
     padding: 1px 5px;
   }
+
+  /* ---- ruled data tables --------------------------------------------------- */
+  .tbl { margin: 16px 0; overflow-x: auto; }
+  .bubble table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13.5px;
+    font-variant-numeric: tabular-nums;
+  }
+  .bubble th {
+    white-space: nowrap;
+    text-align: left;
+    font: 500 10px/1 var(--mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 0 16px 8px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .bubble td {
+    white-space: normal;
+    vertical-align: top;
+    color: var(--ink-soft);
+    padding: 8px 16px 8px 0;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .bubble tr > *:last-child { padding-right: 0; }
+  .bubble tbody tr:last-child td { border-bottom: 0; }
 
   /* ---- stamped tool chips ------------------------------------------------ */
   .tools { margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 6px; }
@@ -668,15 +718,128 @@ function el(tag, cls, parent) {
   return node;
 }
 
+// Only follow the stream if the reader is already at the bottom, so scrolling
+// up to re-read an earlier sheet is not yanked back on the next token.
+function atBottom() {
+  return chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+}
+
 function esc(text) {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// Minimal markdown: escape first, then bold and inline code only.
-function render(text) {
-  return esc(text)
+/* Small block renderer for the markdown the agent actually emits: paragraphs,
+   headings, bullet and numbered lists, fenced code, and pipe tables. Every line
+   is escaped before any markup is built, so model output cannot inject HTML.
+   Links are deliberately left as plain text rather than trusting a model-authored
+   href. */
+
+const FENCE = /^\s*```/;
+const HEADING = /^\s*(#{1,6})\s+(.*)$/;
+const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+(.*)$/;
+const ORDERED = /^\s*\d+[.)]\s+/;
+const TABLE_RULE = /^\s*\|?[\s:|-]*-[\s:|-]*\|?\s*$/;
+
+function inline(text) {
+  return text
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*([^*\n]+)\*/g, "<em>$1</em>")
     .replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+
+function isRow(line) {
+  return line.trim().startsWith("|");
+}
+
+function isTable(lines, i) {
+  return isRow(lines[i]) && i + 1 < lines.length && TABLE_RULE.test(lines[i + 1]);
+}
+
+function startsBlock(lines, i) {
+  return (
+    FENCE.test(lines[i]) ||
+    HEADING.test(lines[i]) ||
+    LIST_ITEM.test(lines[i]) ||
+    isTable(lines, i)
+  );
+}
+
+function cells(line) {
+  let row = line.trim();
+  if (row.startsWith("|")) row = row.slice(1);
+  if (row.endsWith("|")) row = row.slice(0, -1);
+  return row.split("|").map((cell) => cell.trim());
+}
+
+function tableHtml(head, body) {
+  const th = head.map((c) => "<th>" + inline(c) + "</th>").join("");
+  const rows = body
+    .map((r) => "<tr>" + r.map((c) => "<td>" + inline(c) + "</td>").join("") + "</tr>")
+    .join("");
+  return (
+    '<div class="tbl"><table><thead><tr>' + th + "</tr></thead>" +
+    "<tbody>" + rows + "</tbody></table></div>"
+  );
+}
+
+function render(text) {
+  const lines = esc(text).split("\n");
+  const out = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    // Fenced code. An unclosed fence still renders, so it works mid-stream.
+    if (FENCE.test(lines[i])) {
+      const code = [];
+      i += 1;
+      while (i < lines.length && !FENCE.test(lines[i])) code.push(lines[i++]);
+      i += 1;
+      out.push('<pre class="code">' + code.join("\n") + "</pre>");
+      continue;
+    }
+
+    if (HEADING.test(lines[i])) {
+      out.push("<h3>" + inline(lines[i].match(HEADING)[2]) + "</h3>");
+      i += 1;
+      continue;
+    }
+
+    // A header row, a |---|---| rule, then rows until the block ends.
+    if (isTable(lines, i)) {
+      const head = cells(lines[i]);
+      const body = [];
+      i += 2;
+      while (i < lines.length && isRow(lines[i])) body.push(cells(lines[i++]));
+      out.push(tableHtml(head, body));
+      continue;
+    }
+
+    if (LIST_ITEM.test(lines[i])) {
+      const tag = ORDERED.test(lines[i]) ? "ol" : "ul";
+      const items = [];
+      while (i < lines.length && LIST_ITEM.test(lines[i])) {
+        items.push("<li>" + inline(lines[i].match(LIST_ITEM)[1]) + "</li>");
+        i += 1;
+      }
+      out.push("<" + tag + ">" + items.join("") + "</" + tag + ">");
+      continue;
+    }
+
+    if (lines[i].trim() === "") {
+      i += 1;
+      continue;
+    }
+
+    const para = [];
+    while (i < lines.length && lines[i].trim() !== "" && !startsBlock(lines, i)) {
+      para.push(inline(lines[i]));
+      i += 1;
+    }
+    if (para.length) out.push("<p>" + para.join("<br>") + "</p>");
+    else i += 1;
+  }
+
+  return out.join("");
 }
 
 async function ask(question) {
@@ -727,6 +890,7 @@ async function ask(question) {
         buffer = buffer.slice(split + 2);
         if (!raw.startsWith("data: ")) continue;
         const event = JSON.parse(raw.slice(6));
+        const stick = atBottom();
         if (event.tool) {
           el("span", "chip", tools).textContent = event.tool;
         } else if (event.delta) {
@@ -735,7 +899,7 @@ async function ask(question) {
         } else if (event.answer) {
           finish(bubble, event.answer);
         }
-        chat.scrollTop = chat.scrollHeight;
+        if (stick) chat.scrollTop = chat.scrollHeight;
       }
     }
     if (!text) body.innerHTML = '<span class="typing">(no answer text)</span>';
@@ -750,6 +914,12 @@ async function ask(question) {
 }
 
 function finish(bubble, answer) {
+  // The stream carries every AI turn, including the notes the model writes
+  // before each tool call. answer.text is just the final message, so swap it in
+  // once the turn is done: live progress while streaming, clean answer after.
+  const body = bubble.querySelector(".body");
+  if (body && answer.text) body.innerHTML = render(answer.text);
+
   if (answer.sql_used && answer.sql_used.length) {
     const details = el("details", "sql", bubble);
     el("summary", "", details).textContent =

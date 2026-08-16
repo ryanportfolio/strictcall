@@ -1,7 +1,8 @@
 """Live integration tests: the real agent loop against real hosted models.
 
-Opt-in: they run only when OPENROUTER_API_KEY is set (all listed models are on
-OpenRouter's free tier), so CI and offline runs skip them automatically.
+Opt-in: they run only when OPENROUTER_API_KEY is set, so CI and offline runs
+skip them automatically. Most listed models are on OpenRouter's free tier;
+any slug without a `:free` suffix is billed per call.
 """
 
 import os
@@ -15,7 +16,7 @@ from strictcall.llm import get_chat_model
 
 LIVE_MODELS = [
     "openrouter:cohere/north-mini-code:free",
-    "openrouter:inclusionai/ling-3.0-flash:free",
+    "openrouter:inclusionai/ling-3.0-flash",  # paid: the :free variant was withdrawn
     "openrouter:poolside/laguna-xs-2.1:free",
     "openrouter:nvidia/nemotron-3-ultra-550b-a55b:free",
 ]
