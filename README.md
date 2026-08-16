@@ -120,9 +120,11 @@ The runtime serves a chat page at `/`: start the service, open
 http://localhost:8080, and ask. Answers stream token by token, each tool call
 shows up as a chip as it happens, and every reply carries an expandable panel
 with the exact SQL the agent ran, so nothing about the answer is a black box.
-The page is one dependency-free static file
+The page is one static file with no build step
 ([index.html](src/strictcall/static/index.html)) talking to the same
-`/invocations` SSE endpoint any other client would use.
+`/invocations` SSE endpoint any other client would use. Markup, styling, and
+script are inline; the only external request is the webfont stylesheet, and
+the page falls back to system faces without it.
 
 A live instance runs at https://strictcall-production.up.railway.app on a
 free-tier model, so it shares a small daily request cap; if it stops

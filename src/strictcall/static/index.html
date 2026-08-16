@@ -2,182 +2,602 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>strictcall</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎯</text></svg>">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>strictcall — ask the loyalty warehouse</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 fill=%22%233B60C5%22/><g fill=%22%23FDF8F0%22><rect x=%225%22 y=%226%22 width=%2211%22 height=%223%22/><rect x=%225%22 y=%2213%22 width=%2217%22 height=%223%22/><rect x=%225%22 y=%2220%22 width=%228%22 height=%223%22/><circle cx=%2222%22 cy=%2222%22 r=%224%22/></g></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=DM+Sans:wght@400;500&family=Geist+Mono:wght@400;500&family=Caveat:wght@500&display=swap">
 <style>
   :root {
-    --bg: #f6f7f9;
-    --panel: #ffffff;
-    --ink: #1a1d23;
-    --muted: #6b7280;
-    --accent: #4f46e5;
-    --accent-soft: #eef2ff;
-    --border: #e5e7eb;
-    --user: #4f46e5;
-    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    /* paper */
+    --paper: #EBE1CC;
+    --sheet: #FDF8F0;
+    --trace: #F6EDDA;
+    --kraft: #DFD0B3;
+    /* ink */
+    --ink: #2F2F2F;
+    --ink-soft: #5B5B5B;
+    --ink-faint: #8B8B8B;
+    --rule: #A7A7A7;
+    --edge: rgba(66, 66, 66, 0.30);
+    /* marks */
+    --orange: #E76051;
+    --blue: #3B60C5;
+    --blue-deep: #0B1941;
+    --hole: #3F3F3F;
+
+    --display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+    --body: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --hand: "Caveat", "Segoe Script", cursive;
+
+    --lift: 4px 4px 0 rgba(0, 0, 0, 0.10);
+    --lift-sm: 2px 2px 0 rgba(0, 0, 0, 0.15);
+    --lane: 820px;
   }
+
   * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
   body {
     margin: 0;
-    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--ink);
+    height: 100dvh;
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    color: var(--ink);
+    font: 400 15px/1.6 var(--body);
+    background-color: var(--paper);
+    /* graph paper: fine 8px squares, heavier 80px majors */
+    background-image:
+      linear-gradient(to right, rgba(66,66,66,0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(66,66,66,0.06) 1px, transparent 1px),
+      linear-gradient(to right, rgba(66,66,66,0.12) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(66,66,66,0.12) 1px, transparent 1px);
+    background-size: 8px 8px, 8px 8px, 80px 80px, 80px 80px;
   }
+
+  /* ---- grain over everything ---------------------------------------- */
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0.20;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ---- corner telemetry --------------------------------------------- */
+  .hud {
+    position: fixed;
+    z-index: 40;
+    font: 500 10px/1.5 var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .hud b { font-weight: 500; color: var(--ink-soft); }
+  .hud--tl { top: 14px; left: 16px; }
+  .hud--tr { top: 14px; right: 16px; text-align: right; }
+  .hud--bl { bottom: 12px; left: 16px; }
+
+  /* ---- draw-on loader ------------------------------------------------ */
+  #loader {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: grid;
+    place-items: center;
+    background: var(--paper);
+    animation: curtain 0.35s ease 1.15s forwards;
+  }
+  #loader svg { filter: drop-shadow(0 0 1px var(--hole)); }
+  #loader .stroke {
+    fill: none;
+    stroke: var(--blue);
+    stroke-width: 3;
+    stroke-dasharray: 108;
+    stroke-dashoffset: 108;
+    animation: draw 1.05s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  }
+  #loader .fill { fill: var(--blue); opacity: 0; animation: ink 0.4s ease 0.75s forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes ink { to { opacity: 1; } }
+  @keyframes curtain { to { opacity: 0; visibility: hidden; } }
+
+  /* ---- floating nav plate -------------------------------------------- */
   header {
+    position: relative;
+    z-index: 30;
     display: flex;
-    align-items: baseline;
-    gap: 10px;
-    padding: 14px 22px;
-    background: var(--panel);
-    border-bottom: 1px solid var(--border);
+    align-items: center;
+    gap: 14px;
+    width: min(var(--lane), calc(100% - 32px));
+    margin: 18px auto 0;
+    padding: 9px 10px 9px 14px;
+    background: var(--sheet);
+    border: 1px solid var(--edge);
+    box-shadow: var(--lift);
   }
-  header h1 { font-size: 17px; margin: 0; letter-spacing: -0.2px; }
-  header .sub { color: var(--muted); font-size: 13px; }
+  header .mark { display: block; width: 26px; height: 26px; flex: none; }
+  header h1 {
+    margin: 0;
+    font: 600 17px/1 var(--display);
+    letter-spacing: -0.02em;
+  }
+  header .sub {
+    font: 500 10px/1 var(--mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    border-left: 1px solid var(--rule);
+    padding-left: 12px;
+  }
   header button {
     margin-left: auto;
-    border: 1px solid var(--border);
-    background: var(--panel);
-    color: var(--muted);
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 13px;
+    font: 500 12px/1 var(--mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--kraft);
+    border: 1px solid var(--edge);
+    box-shadow: var(--lift-sm);
+    padding: 8px 12px;
     cursor: pointer;
+    transition: background 0.15s ease;
   }
-  header button:hover { color: var(--ink); border-color: var(--muted); }
-  #chat {
-    flex: 1;
-    overflow-y: auto;
-    padding: 24px 0 12px;
+  header button:hover { background: var(--trace); }
+  header button:active { transform: translate(2px, 2px); box-shadow: none; }
+
+  /* ---- transcript ----------------------------------------------------- */
+  #chat { flex: 1; overflow-y: auto; padding: 26px 0 8px; scrollbar-width: thin; }
+  .lane { width: min(var(--lane), calc(100% - 32px)); margin: 0 auto; }
+
+  /* ---- opening spread -------------------------------------------------- */
+  #starters { padding: 26px 0 8px; }
+  .eyebrow {
+    font: 500 10px/1 var(--mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 22px;
   }
-  .lane { max-width: 780px; margin: 0 auto; padding: 0 22px; }
-  .msg { margin: 10px 0; display: flex; }
-  .msg.user { justify-content: flex-end; }
-  .bubble {
-    max-width: 85%;
-    padding: 10px 14px;
-    border-radius: 14px;
+  .display {
+    margin: 0;
+    font: 700 clamp(44px, 8.5vw, 92px)/0.92 var(--display);
+    letter-spacing: -0.035em;
+    color: var(--ink);
+  }
+  .display .dim { color: var(--ink-soft); }
+  .note {
+    font: 500 23px/1 var(--hand);
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .note--lead { display: block; margin: 0 0 6px 4px; }
+  .note u {
+    text-decoration: none;
+    border-bottom: 1.5px solid var(--ink-faint);
+    padding-bottom: 1px;
+  }
+  .lede {
+    max-width: 46ch;
+    margin: 22px 0 0;
+    color: var(--ink-soft);
+    font-size: 16px;
+  }
+  .lede em {
+    font-style: normal;
+    text-decoration: underline dotted var(--orange);
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
+  }
+
+  /* ---- legend / key ------------------------------------------------------- */
+  .legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 40px;
+    margin-top: 34px;
+    border-top: 1px dashed var(--rule);
+    padding: 18px 0 6px;
+  }
+  @media (max-width: 680px) { .legend { grid-template-columns: 1fr; } }
+  .legend h2 {
+    margin: 0 0 10px;
+    font: 500 10px/1 var(--mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .legend ul { margin: 0; padding: 0; list-style: none; }
+  .legend li {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px dashed var(--rule);
+    padding: 6px 0;
+    font: 400 12.5px/1.4 var(--mono);
+    color: var(--ink-soft);
+  }
+  .legend li span { font-family: var(--body); font-size: 12.5px; color: var(--ink-faint); }
+
+  .deck {
+    margin-top: 34px;
+    border-top: 1px dashed var(--rule);
+    padding-top: 18px;
+  }
+  .deck-label {
+    font: 500 10px/1 var(--mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 14px;
+  }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 680px) { .cards { grid-template-columns: 1fr; } }
+  .cards button {
+    position: relative;
+    text-align: left;
+    background: var(--sheet);
+    border: 1px solid var(--edge);
+    box-shadow: var(--lift);
+    padding: 16px 16px 16px 18px;
+    font: 500 15px/1.4 var(--body);
+    color: var(--ink);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .cards button::before {
+    content: attr(data-n);
+    display: block;
+    font: 500 10px/1 var(--mono);
+    letter-spacing: 0.12em;
+    color: var(--blue);
+    margin-bottom: 10px;
+  }
+  .cards button:hover { background: var(--trace); transform: translate(-1px, -1px); box-shadow: 6px 6px 0 rgba(0,0,0,0.10); }
+  .cards button:active { transform: translate(2px, 2px); box-shadow: none; }
+
+  /* ---- exchange sheets --------------------------------------------------- */
+  .msg { margin: 30px 0 0; }
+  .msg.user { display: flex; justify-content: flex-end; }
+
+  /* request slip: kraft, taped down, slightly off-square */
+  .user .bubble {
+    position: relative;
+    max-width: 78%;
+    background: var(--kraft);
+    border: 1px solid var(--edge);
+    box-shadow: var(--lift);
+    padding: 13px 17px;
+    font: 500 15px/1.45 var(--body);
+    color: var(--ink);
+    rotate: -0.35deg;
     white-space: pre-wrap;
     overflow-wrap: break-word;
   }
-  .user .bubble { background: var(--user); color: #fff; border-bottom-right-radius: 4px; }
+  .user .bubble::before {
+    content: "";
+    position: absolute;
+    top: -8px;
+    right: 20px;
+    width: 54px;
+    height: 16px;
+    background: rgba(253, 248, 240, 0.62);
+    border-left: 1px solid rgba(66,66,66,0.14);
+    border-right: 1px solid rgba(66,66,66,0.14);
+    rotate: 2.5deg;
+  }
+
+  /* response sheet: white paper, punched margin, tab */
   .agent .bubble {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-bottom-left-radius: 4px;
+    position: relative;
+    background: var(--sheet);
+    border: 1px solid var(--edge);
+    box-shadow: var(--lift);
+    padding: 22px 26px 22px 48px;
+    overflow-wrap: break-word;
   }
+  /* punched binder holes down the left margin */
+  .agent .bubble::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 26px;
+    border-right: 1px dashed rgba(231, 96, 81, 0.35);
+    background-image: radial-gradient(circle 6px at 13px 24px,
+      var(--paper) 0 4.6px,
+      rgba(63, 63, 63, 0.30) 4.6px 5.6px,
+      transparent 5.6px);
+    background-size: 100% 48px;
+    background-repeat: repeat-y;
+    pointer-events: none;
+  }
+  .tab {
+    position: absolute;
+    top: -1px;
+    left: 48px;
+    transform: translateY(-100%);
+    background: var(--kraft);
+    border: 1px solid var(--edge);
+    border-bottom: 0;
+    padding: 4px 12px 3px;
+    font: 500 10px/1 var(--mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    filter: drop-shadow(3px -2px 0 rgba(0, 0, 0, 0.07));
+  }
+  .agent .body { white-space: pre-wrap; }
+  .bubble strong { font-weight: 500; color: var(--blue-deep); }
   .bubble code {
-    font-family: var(--mono);
-    font-size: 13px;
-    background: rgba(0,0,0,0.06);
+    font: 400 13px/1.4 var(--mono);
+    background: var(--trace);
+    border: 1px solid rgba(66,66,66,0.14);
     padding: 1px 5px;
-    border-radius: 5px;
   }
-  .user .bubble code { background: rgba(255,255,255,0.2); }
-  .tools { margin: 6px 0 2px; }
+
+  /* ---- stamped tool chips ------------------------------------------------ */
+  .tools { margin: 0 0 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tools:empty { display: none; }
   .chip {
-    display: inline-block;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--accent);
-    background: var(--accent-soft);
-    border: 1px solid #dfe3ff;
-    border-radius: 999px;
-    padding: 2px 10px;
-    margin-right: 6px;
+    font: 500 10px/1 var(--mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--blue);
+    background: rgba(59, 96, 197, 0.07);
+    border: 1px dashed rgba(59, 96, 197, 0.5);
+    padding: 5px 9px;
+    animation: stamp 0.28s cubic-bezier(0.2, 1.4, 0.4, 1) backwards;
   }
+  @keyframes stamp {
+    from { opacity: 0; transform: scale(1.5) rotate(-4deg); }
+    to { opacity: 1; transform: none; }
+  }
+
+  /* ---- show-the-work drawer ---------------------------------------------- */
   details.sql {
-    margin-top: 8px;
-    font-size: 13px;
-    color: var(--muted);
+    margin-top: 20px;
+    border-top: 1px dashed var(--rule);
+    padding-top: 14px;
   }
-  details.sql summary { cursor: pointer; user-select: none; }
+  details.sql summary {
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font: 500 10px/1 var(--mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  details.sql summary::-webkit-details-marker { display: none; }
+  details.sql summary::before {
+    content: "+";
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    background: var(--kraft);
+    border: 1px solid var(--edge);
+    font-size: 11px;
+  }
+  details.sql[open] summary::before { content: "\2212"; }
+  details.sql summary:hover { color: var(--orange); }
   details.sql pre {
-    font-family: var(--mono);
-    font-size: 12.5px;
-    background: #0f172a;
-    color: #e2e8f0;
-    padding: 10px 12px;
-    border-radius: 8px;
+    margin: 12px 0 0;
+    font: 400 12.5px/1.65 var(--mono);
+    color: var(--blue-deep);
+    background: var(--trace);
+    border: 1px solid var(--edge);
+    border-left: 3px solid var(--blue);
+    padding: 14px 16px;
     overflow-x: auto;
     white-space: pre-wrap;
+    animation: unfold 0.22s ease;
   }
-  .caveat { color: #b45309; font-size: 13px; margin-top: 6px; }
-  .error { color: #b91c1c; }
-  #starters { text-align: center; padding: 40px 22px 10px; }
-  #starters p { color: var(--muted); margin: 0 0 16px; }
-  #starters button {
-    display: block;
-    margin: 8px auto;
-    max-width: 560px;
-    width: 100%;
-    text-align: left;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: var(--ink);
-    cursor: pointer;
+  @keyframes unfold { from { opacity: 0; transform: translateY(-4px); } }
+
+  /* ---- margin notes ------------------------------------------------------- */
+  .caveat {
+    margin-top: 14px;
+    padding-left: 14px;
+    border-left: 3px solid var(--orange);
+    font: 500 19px/1.25 var(--hand);
+    color: #a2452f;
   }
-  #starters button:hover { border-color: var(--accent); color: var(--accent); }
+  .error {
+    font: 400 14px/1.5 var(--mono);
+    color: var(--orange);
+  }
+  .typing {
+    font: 500 10px/1 var(--mono);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .typing::after {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 10px;
+    margin-left: 6px;
+    background: var(--orange);
+    vertical-align: -1px;
+    animation: blink 0.9s steps(2, start) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---- ruled input bar ----------------------------------------------------- */
+  .composer {
+    position: relative;
+    z-index: 30;
+    background: var(--sheet);
+    border-top: 1px solid var(--edge);
+    box-shadow: 0 -3px 0 rgba(0, 0, 0, 0.05);
+  }
   form {
     display: flex;
-    gap: 10px;
-    max-width: 780px;
+    align-items: center;
+    gap: 12px;
+    width: min(var(--lane), calc(100% - 32px));
     margin: 0 auto;
-    padding: 12px 22px 18px;
-    width: 100%;
+    padding: 16px 0 18px;
+  }
+  .field {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1.5px dashed var(--rule);
+    padding-bottom: 8px;
+    transition: border-color 0.15s ease;
+  }
+  .field:focus-within { border-bottom-color: var(--orange); }
+  .field .caret {
+    font: 500 13px/1 var(--mono);
+    color: var(--orange);
   }
   input[type=text] {
     flex: 1;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px 14px;
-    font-size: 15px;
-    outline: none;
-    background: var(--panel);
-  }
-  input[type=text]:focus { border-color: var(--accent); }
-  form button {
     border: 0;
-    background: var(--accent);
-    color: #fff;
-    border-radius: 12px;
-    padding: 0 20px;
-    font-size: 15px;
+    background: none;
+    outline: none;
+    font: 400 16px/1.4 var(--body);
+    color: var(--ink);
+    padding: 2px 0;
+  }
+  input[type=text]::placeholder { color: var(--ink-faint); }
+  form button {
+    font: 500 12px/1 var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sheet);
+    background: var(--orange);
+    border: 1px solid rgba(66,66,66,0.35);
+    box-shadow: var(--lift-sm);
+    padding: 12px 20px;
     cursor: pointer;
   }
-  form button:disabled { opacity: 0.5; cursor: default; }
-  .typing { color: var(--muted); font-size: 13px; }
+  form button:active { transform: translate(2px, 2px); box-shadow: none; }
+  form button:disabled { opacity: 0.45; cursor: default; transform: none; box-shadow: var(--lift-sm); }
+
+  @media (max-width: 680px) {
+    .hud--tr, .hud--bl { display: none; }
+    header { margin-top: 36px; }
+    header .sub { display: none; }
+    .agent .bubble { padding: 20px 18px 20px 40px; }
+    .tab { left: 40px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+    #loader { animation: curtain 0.01ms linear forwards; }
+  }
 </style>
 </head>
 <body>
+
+<div class="grain" aria-hidden="true"></div>
+
+<div id="loader" aria-hidden="true">
+  <svg width="72" height="72" viewBox="0 0 32 32">
+    <g class="fill">
+      <rect x="5" y="6" width="11" height="3"></rect>
+      <rect x="5" y="13" width="17" height="3"></rect>
+      <rect x="5" y="20" width="8" height="3"></rect>
+      <circle cx="22" cy="22" r="4"></circle>
+    </g>
+    <rect class="stroke" x="2.5" y="2.5" width="27" height="27"></rect>
+  </svg>
+</div>
+
+<div class="hud hud--tl" aria-hidden="true">sheet <b id="hud-sheet">00</b> / queries <b id="hud-queries">0</b></div>
+<div class="hud hud--tr" aria-hidden="true">duckdb &middot; loyalty warehouse</div>
+<div class="hud hud--bl" aria-hidden="true"><span id="hud-status">idle</span> <b id="hud-timer"></b></div>
+
 <header>
+  <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+    <rect width="32" height="32" fill="#3B60C5"></rect>
+    <g fill="#FDF8F0">
+      <rect x="5" y="6" width="11" height="3"></rect>
+      <rect x="5" y="13" width="17" height="3"></rect>
+      <rect x="5" y="20" width="8" height="3"></rect>
+      <circle cx="22" cy="22" r="4"></circle>
+    </g>
+  </svg>
   <h1>strictcall</h1>
-  <span class="sub">ask the loyalty warehouse anything</span>
-  <button id="reset" type="button">new conversation</button>
+  <span class="sub">every answer shows its SQL</span>
+  <button id="reset" type="button">new sheet</button>
 </header>
 
 <div id="chat">
   <div class="lane" id="messages">
     <div id="starters">
-      <p>Every answer comes from SQL the agent writes and runs against the warehouse.</p>
-      <button>Which members are within 500 points of the next tier?</button>
-      <button>How many Platinum members are there, and who are they?</button>
-      <button>What was the total of points earned per month in 2025?</button>
-      <button>What is a Gold member's average current balance worth in USD?</button>
+      <p class="eyebrow">loyalty warehouse &mdash; read only</p>
+      <span class="note note--lead">it writes the <u>SQL</u> itself &darr;</span>
+      <h1 class="display">Ask the warehouse<br><span class="dim">See what it ran</span></h1>
+      <p class="lede">Nothing here is guessed. Every number comes from <em>SQL the agent wrote and ran</em>, and every query it ran is on the sheet with the answer.</p>
+
+      <div class="deck">
+        <div class="deck-label">start from one of these</div>
+        <div class="cards">
+          <button data-n="01">Which members are within 500 points of the next tier?</button>
+          <button data-n="02">How many Platinum members are there, and who are they?</button>
+          <button data-n="03">What was the total of points earned per month in 2025?</button>
+          <button data-n="04">What is a Gold member's average current balance worth in USD?</button>
+        </div>
+      </div>
+
+      <div class="legend">
+        <div>
+          <h2>what it can read</h2>
+          <ul>
+            <li>tiers <span>thresholds, multipliers</span></li>
+            <li>members <span>name, city, joined</span></li>
+            <li>transactions <span>spend, points earned</span></li>
+            <li>redemptions <span>points spent, reward</span></li>
+            <li>v_balances <span>derived balances, next tier</span></li>
+          </ul>
+        </div>
+        <div>
+          <h2>what it can call</h2>
+          <ul>
+            <li>describe_schema <span>shape of the warehouse</span></li>
+            <li>sql_query <span>read-only SELECT</span></li>
+            <li>fx_rate <span>currency conversion</span></li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 </div>
 
-<form id="form">
-  <input id="input" type="text" placeholder="Ask a question about the loyalty program data" autocomplete="off" autofocus>
-  <button id="send" type="submit">Send</button>
-</form>
+<div class="composer">
+  <form id="form">
+    <div class="field">
+      <span class="caret" aria-hidden="true">&rsaquo;</span>
+      <input id="input" type="text" placeholder="Ask a question about the loyalty program data" autocomplete="off" autofocus>
+    </div>
+    <button id="send" type="submit">Send</button>
+  </form>
+</div>
 
 <script>
 const messages = document.getElementById("messages");
@@ -186,14 +606,48 @@ const form = document.getElementById("form");
 const input = document.getElementById("input");
 const send = document.getElementById("send");
 const starters = document.getElementById("starters");
+const hudSheet = document.getElementById("hud-sheet");
+const hudQueries = document.getElementById("hud-queries");
+const hudStatus = document.getElementById("hud-status");
+const hudTimer = document.getElementById("hud-timer");
 
 let sessionId = newSession();
+let sheetNo = 0;
+let queryCount = 0;
+let ticker = null;
+
 function newSession() { return "ui-" + crypto.randomUUID(); }
+
+function pad(n) { return String(n).padStart(2, "0"); }
+
+function setStatus(state, elapsed) {
+  hudStatus.textContent = state;
+  hudTimer.textContent = elapsed || "";
+}
+
+function startTicker() {
+  const t0 = performance.now();
+  setStatus("running", "0.0s");
+  ticker = setInterval(() => {
+    setStatus("running", ((performance.now() - t0) / 1000).toFixed(1) + "s");
+  }, 100);
+  return () => {
+    clearInterval(ticker);
+    ticker = null;
+    setStatus("idle", ((performance.now() - t0) / 1000).toFixed(1) + "s");
+  };
+}
 
 document.getElementById("reset").addEventListener("click", () => {
   sessionId = newSession();
+  sheetNo = 0;
+  queryCount = 0;
+  hudSheet.textContent = "00";
+  hudQueries.textContent = "0";
+  setStatus("idle", "");
   messages.querySelectorAll(".msg").forEach((el) => el.remove());
   starters.style.display = "";
+  chat.scrollTop = 0;
   input.focus();
 });
 
@@ -231,14 +685,21 @@ async function ask(question) {
   send.disabled = true;
   input.disabled = true;
 
+  sheetNo += 1;
+  queryCount += 1;
+  hudSheet.textContent = pad(sheetNo);
+  hudQueries.textContent = String(queryCount);
+  const stopTicker = startTicker();
+
   const user = el("div", "msg user", messages);
   el("div", "bubble", user).textContent = question;
 
   const agent = el("div", "msg agent", messages);
   const bubble = el("div", "bubble", agent);
+  el("div", "tab", bubble).textContent = "sheet " + pad(sheetNo);
   const tools = el("div", "tools", bubble);
   const body = el("div", "body", bubble);
-  body.innerHTML = '<span class="typing">thinking&hellip;</span>';
+  body.innerHTML = '<span class="typing">thinking</span>';
   chat.scrollTop = chat.scrollHeight;
 
   let text = "";
@@ -281,6 +742,7 @@ async function ask(question) {
   } catch (err) {
     body.innerHTML = '<span class="error">' + esc(String(err)) + "</span>";
   } finally {
+    stopTicker();
     send.disabled = false;
     input.disabled = false;
     input.focus();
@@ -291,12 +753,12 @@ function finish(bubble, answer) {
   if (answer.sql_used && answer.sql_used.length) {
     const details = el("details", "sql", bubble);
     el("summary", "", details).textContent =
-      "SQL the agent ran (" + answer.sql_used.length + ")";
+      "the SQL it ran (" + answer.sql_used.length + ")";
     const pre = el("pre", "", details);
     pre.textContent = answer.sql_used.join("\n\n");
   }
   (answer.data_caveats || []).forEach((caveat) => {
-    el("div", "caveat", bubble).textContent = "⚠ " + caveat;
+    el("div", "caveat", bubble).textContent = caveat;
   });
 }
 </script>
