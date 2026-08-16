@@ -23,7 +23,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from langchain_core.messages import AIMessageChunk, HumanMessage
 from pydantic import BaseModel, Field
 
-from strictcall.agent import build_agent, collect_answer, message_text
+from strictcall.agent import build_agent, collect_answer, message_text, tool_failure
 from strictcall.backends import get_backend
 from strictcall.contracts import Answer
 from strictcall.llm import get_chat_model
@@ -106,13 +106,17 @@ def _sse(payload: dict) -> str:
 
 
 def _sse_events(agent, prompt: str, config: dict, busy: BusyCounter) -> Iterator[str]:
-    """SSE stream: {"tool": name} when a tool is called, {"delta": text} per
+    """SSE stream: {"tool": name} when a tool is called, {"tool_error": <ToolFailure>}
+    when one is rejected and the model has to correct itself, {"delta": text} per
     token, then one final {"answer": <validated Answer>}."""
     with busy:
         for chunk, metadata in agent.stream(
             {"messages": [HumanMessage(prompt)]}, config, stream_mode="messages"
         ):
             if metadata.get("langgraph_node") == "tools":
+                failure = tool_failure(chunk)
+                if failure:
+                    yield _sse({"tool_error": failure.model_dump(mode="json")})
                 continue
             if isinstance(chunk, AIMessageChunk):
                 for call in chunk.tool_calls:

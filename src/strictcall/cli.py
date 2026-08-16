@@ -10,7 +10,7 @@ import sys
 
 from langchain_core.messages import AIMessageChunk, HumanMessage
 
-from strictcall.agent import build_agent, collect_answer, message_text
+from strictcall.agent import build_agent, collect_answer, message_text, tool_failure
 from strictcall.backends import get_backend
 from strictcall.llm import get_chat_model
 
@@ -21,6 +21,9 @@ def run_turn(agent, question: str, thread_id: str, as_json: bool) -> None:
         {"messages": [HumanMessage(question)]}, config, stream_mode="messages"
     ):
         if metadata.get("langgraph_node") == "tools":
+            failure = tool_failure(chunk)
+            if failure:
+                print(f"[{failure.tool} rejected: {failure.error}]", file=sys.stderr, flush=True)
             continue
         if isinstance(chunk, AIMessageChunk):
             for call in chunk.tool_calls:

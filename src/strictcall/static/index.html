@@ -413,12 +413,41 @@
     from { opacity: 0; transform: scale(1.5) rotate(-4deg); }
     to { opacity: 1; transform: none; }
   }
+  .chip.rejected {
+    color: var(--orange);
+    background: rgba(231, 96, 81, 0.07);
+    border-color: rgba(231, 96, 81, 0.55);
+    text-decoration: line-through;
+  }
 
-  /* ---- show-the-work drawer ---------------------------------------------- */
+  /* ---- show-the-work drawers ---------------------------------------------- */
   details.sql {
     margin-top: 20px;
     border-top: 1px dashed var(--rule);
     padding-top: 14px;
+  }
+  details.sql + details.sql { margin-top: 12px; }
+  details.rejects summary { color: var(--orange); }
+  details.rejects summary::before { border-color: rgba(231, 96, 81, 0.55); }
+  .reject {
+    margin-top: 12px;
+    border-left: 3px solid var(--orange);
+    padding: 2px 0 2px 14px;
+  }
+  .reject b {
+    display: block;
+    font: 500 10px/1.4 var(--mono);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--orange);
+  }
+  .reject span { display: block; font-size: 13.5px; color: var(--ink-soft); margin-top: 3px; }
+  .reject i {
+    display: block;
+    font-style: normal;
+    font-size: 13px;
+    color: var(--ink-faint);
+    margin-top: 3px;
   }
   details.sql summary {
     cursor: pointer;
@@ -893,6 +922,8 @@ async function ask(question) {
         const stick = atBottom();
         if (event.tool) {
           el("span", "chip", tools).textContent = event.tool;
+        } else if (event.tool_error) {
+          reject(tools, event.tool_error);
         } else if (event.delta) {
           text += event.delta;
           body.innerHTML = render(text);
@@ -913,6 +944,18 @@ async function ask(question) {
   }
 }
 
+// A rejected call is struck through where it was stamped, so a retry is visible
+// while it happens rather than only in the summary afterwards.
+function reject(tools, failure) {
+  const chips = [...tools.querySelectorAll(".chip")].filter(
+    (c) => c.textContent === failure.tool && !c.classList.contains("rejected")
+  );
+  const chip = chips[chips.length - 1] || el("span", "chip", tools);
+  chip.textContent = failure.tool;
+  chip.classList.add("rejected");
+  chip.title = failure.error;
+}
+
 function finish(bubble, answer) {
   // The stream carries every AI turn, including the notes the model writes
   // before each tool call. answer.text is just the final message, so swap it in
@@ -922,11 +965,26 @@ function finish(bubble, answer) {
 
   if (answer.sql_used && answer.sql_used.length) {
     const details = el("details", "sql", bubble);
+    // "issued", not "ran": a rejected statement is listed here too, and the
+    // drawer below says which ones were thrown out.
     el("summary", "", details).textContent =
-      "the SQL it ran (" + answer.sql_used.length + ")";
+      "the SQL it issued (" + answer.sql_used.length + ")";
     const pre = el("pre", "", details);
     pre.textContent = answer.sql_used.join("\n\n");
   }
+  const rejected = answer.tool_errors || [];
+  if (rejected.length) {
+    const details = el("details", "sql rejects", bubble);
+    el("summary", "", details).textContent =
+      "calls it got wrong and retried (" + rejected.length + ")";
+    rejected.forEach((failure) => {
+      const row = el("div", "reject", details);
+      el("b", "", row).textContent = failure.tool;
+      el("span", "", row).textContent = failure.error;
+      if (failure.hint) el("i", "", row).textContent = failure.hint;
+    });
+  }
+
   (answer.data_caveats || []).forEach((caveat) => {
     el("div", "caveat", bubble).textContent = caveat;
   });

@@ -65,7 +65,8 @@ Kira Ekwueme with only 21 points needed to reach Silver tier.
   "sql_used": [
     "SELECT member_id, full_name, current_tier, next_tier, points_to_next_tier, current_balance FROM v_balances WHERE points_to_next_tier > 0 AND points_to_next_tier <= 500 ORDER BY points_to_next_tier ASC"
   ],
-  "data_caveats": []
+  "data_caveats": [],
+  "tool_errors": []
 }
 ```
 
@@ -119,7 +120,9 @@ question ──> agent node (RetryPolicy) ──> tool node ──> agent node �
 The runtime serves a chat page at `/`: start the service, open
 http://localhost:8080, and ask. Answers stream token by token, each tool call
 shows up as a chip as it happens, and every reply carries an expandable panel
-with the exact SQL the agent ran, so nothing about the answer is a black box.
+with the exact SQL the agent issued. A call the tool layer rejected is struck
+through where it was stamped and listed with its error underneath, so a retry
+is part of the record rather than something the UI quietly hides.
 The page is one static file with no build step
 ([index.html](src/strictcall/static/index.html)) talking to the same
 `/invocations` SSE endpoint any other client would use. Markup, styling, and

@@ -98,6 +98,29 @@ def test_streaming_invocation_emits_deltas_then_one_final_answer(backend):
     assert finals[0]["text"] == "There are 60 members."
 
 
+def test_streaming_reports_a_rejected_tool_call_before_the_retry(backend):
+    import json
+
+    script = [
+        tool_call("sql_query", {"query": "DROP TABLE members", "limit": 5}, "c1"),
+        tool_call("sql_query", {"query": "SELECT COUNT(*) AS n FROM members", "limit": 5}, "c2"),
+        AIMessage("There are 60 members."),
+    ]
+    with client_for(backend, script) as client:
+        with client.stream(
+            "POST", "/invocations", json={"prompt": "How many members?", "stream": True}
+        ) as response:
+            body = "".join(response.iter_text())
+    events = [json.loads(line[len("data: ") :]) for line in body.split("\n\n") if line]
+    rejected = [e["tool_error"] for e in events if "tool_error" in e]
+    assert len(rejected) == 1
+    assert rejected[0]["tool"] == "sql_query"
+    assert "Only SELECT statements are allowed" in rejected[0]["error"]
+
+    final = next(e["answer"] for e in events if "answer" in e)
+    assert [f["tool"] for f in final["tool_errors"]] == ["sql_query"]
+
+
 def test_root_serves_the_chat_ui(backend):
     with client_for(backend, []) as client:
         response = client.get("/")

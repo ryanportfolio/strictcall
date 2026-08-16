@@ -80,9 +80,20 @@ class ToolError(BaseModel):
     hint: str | None = None
 
 
+class ToolFailure(BaseModel):
+    """A tool call that was rejected, and the correction handed back to the
+    model. The turn can still succeed: these are the attempts behind the
+    answer, not errors the caller has to handle."""
+
+    tool: str
+    error: str
+    hint: str | None = None
+
+
 class Answer(BaseModel):
     """Structured summary of a completed agent turn."""
 
     text: str
     sql_used: list[str]
     data_caveats: list[str]
+    tool_errors: list[ToolFailure] = []
