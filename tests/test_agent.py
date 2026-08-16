@@ -32,6 +32,31 @@ def test_agent_self_corrects_after_structured_tool_error(backend):
         "DROP TABLE members",
         "SELECT COUNT(*) AS n FROM members",
     ]
+    # The retry is reported, not swallowed: the turn succeeded, but it took two
+    # attempts and the caller can see why the first one was thrown out.
+    assert [f.tool for f in answer.tool_errors] == ["sql_query"]
+    assert "Only SELECT statements are allowed" in answer.tool_errors[0].error
+    assert answer.tool_errors[0].hint
+
+
+def test_a_truncated_result_does_not_hide_later_queries(backend):
+    script = [
+        tool_call("sql_query", {"query": "SELECT member_id FROM members", "limit": 1}, "c1"),
+        tool_call("sql_query", {"query": "SELECT COUNT(*) AS n FROM members", "limit": 5}, "c2"),
+        AIMessage("There are 60 members."),
+    ]
+    agent = build_agent(backend, model=scripted(script))
+    result = agent.invoke(
+        {"messages": [HumanMessage("How many members are there?")]},
+        {"configurable": {"thread_id": "truncation"}},
+    )
+    answer = collect_answer(result["messages"])
+    assert answer.data_caveats == ["At least one query result was truncated at the row limit."]
+    assert answer.sql_used == [
+        "SELECT member_id FROM members",
+        "SELECT COUNT(*) AS n FROM members",  # issued after the truncated result
+    ]
+    assert answer.tool_errors == []
 
 
 def test_agent_uses_schema_tool_output(backend):

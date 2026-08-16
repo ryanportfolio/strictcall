@@ -11,6 +11,7 @@ Graph shape:
 - An InMemorySaver checkpointer keyed by thread_id provides multi-turn memory.
 """
 
+import json
 from collections.abc import Sequence
 
 from langchain_core.language_models import BaseChatModel
@@ -23,7 +24,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.types import RetryPolicy
 
 from strictcall.backends.base import SqlBackend
-from strictcall.contracts import Answer
+from strictcall.contracts import Answer, ToolFailure
 from strictcall.llm import get_chat_model
 from strictcall.tools import make_fx_tool, make_sql_tools
 
@@ -72,28 +73,60 @@ def message_text(message: BaseMessage) -> str:
     )
 
 
+def tool_failure(message: BaseMessage) -> ToolFailure | None:
+    """The failure behind a tool message, or None if the call succeeded.
+
+    Two shapes count as a failure: a ToolError our own tool serialized, and a
+    message the tool node marked as an error after catching an exception (an
+    argument that never passed validation, say)."""
+    if message.type != "tool":
+        return None
+    text = message_text(message)
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        payload = None
+    if isinstance(payload, dict) and "error" in payload:
+        return ToolFailure(
+            tool=message.name or "",
+            error=str(payload["error"]),
+            hint=payload.get("hint"),
+        )
+    if getattr(message, "status", None) == "error":
+        return ToolFailure(tool=message.name or "", error=text)
+    return None
+
+
 def collect_answer(messages: Sequence[BaseMessage]) -> Answer:
     """Assemble the structured Answer for the latest turn, without an extra
-    model call: the text is the final AI message, sql_used and data_caveats are
-    read back from the validated tool traffic."""
+    model call: the text is the final AI message, and sql_used, data_caveats
+    and tool_errors are read back from the validated tool traffic."""
     last_human = max(
         (i for i, m in enumerate(messages) if m.type == "human"),
         default=0,
     )
     turn = messages[last_human:]
     sql_used: list[str] = []
-    caveats: list[str] = []
+    tool_errors: list[ToolFailure] = []
+    truncated = False
     for message in turn:
         if isinstance(message, AIMessage):
             for call in message.tool_calls:
                 if call["name"] == "sql_query":
                     sql_used.append(call["args"].get("query", ""))
-        if message.type == "tool" and '"truncated":true' in message_text(message).replace(" ", ""):
-            caveats.append("At least one query result was truncated at the row limit.")
-            break
+        if message.type == "tool":
+            failure = tool_failure(message)
+            if failure:
+                tool_errors.append(failure)
+            # Keep scanning: a truncated result early in the turn must not hide
+            # the queries that came after it.
+            if '"truncated":true' in message_text(message).replace(" ", ""):
+                truncated = True
+    caveats = ["At least one query result was truncated at the row limit."] if truncated else []
     final = next((m for m in reversed(turn) if isinstance(m, AIMessage) and not m.tool_calls), None)
     return Answer(
         text=message_text(final) if final else "",
         sql_used=sql_used,
         data_caveats=caveats,
+        tool_errors=tool_errors,
     )
